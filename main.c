@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #define WINDOW_WIDTH 600
 #define WINDOW_WIDTH 600
+#define LINE_POINT_COUNT 4
 
 GLuint newArrayBuffer() {
     GLuint ret = 0;
@@ -27,8 +28,7 @@ struct vertline {
 };
 
 void bufferDynamicDraw(float* vertices, size_t verticesCount) {
-    glBufferData(
-        GL_ARRAY_BUFFER,
+    glBufferData(GL_ARRAY_BUFFER,
         verticesCount * sizeof(vertices),
         vertices,
         GL_DYNAMIC_DRAW
@@ -36,10 +36,10 @@ void bufferDynamicDraw(float* vertices, size_t verticesCount) {
 }
 
 float* vertlineData(struct vertline instance) {
-    const size_t memsize = sizeof(float) * 6;
-    float vertices[2][3] = {
-        {instance.x, 1, 0},
-        {instance.x, -1, 0},
+    const size_t memsize = sizeof(float) * LINE_POINT_COUNT;
+    float vertices[2][2] = {
+        {instance.x, 1.},
+        {instance.x, -1.},
     };
 
     float *ret = malloc(memsize);
@@ -50,7 +50,7 @@ float* vertlineData(struct vertline instance) {
 void vertlineUpdate(struct vertline instance) {
     float* vertices = vertlineData(instance);
     glBindBuffer(GL_ARRAY_BUFFER, instance.vbo);
-    bufferDynamicDraw(vertices, 6);
+    bufferDynamicDraw(vertices, LINE_POINT_COUNT);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glRaise("fail updating vertical line data", glGetError());
     free(vertices);
@@ -68,10 +68,10 @@ void vertexAttribPointer() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(
         0,
-        3,
+        2,
         GL_FLOAT,
         GL_FALSE,
-        3 * sizeof(float),
+        2 * sizeof(float),
         0
     );
 }
@@ -86,7 +86,7 @@ struct vertline makeLine() {
     float* vertices = vertlineData(ret);
     glBindVertexArray(ret.vao);
     glBindBuffer(GL_ARRAY_BUFFER, ret.vbo);
-    bufferDynamicDraw((float*)vertices, 6);
+    bufferDynamicDraw((float*)vertices, LINE_POINT_COUNT);
     vertexAttribPointer();
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -129,8 +129,7 @@ GLuint createShader(const char* filepath, GLenum shaderType) {
     return shaderID;
 }
 
-GLuint makeProgram(GLuint vertexShader, GLuint fragmentShader)
-{
+GLuint makeProgram(GLuint vertexShader, GLuint fragmentShader){
     GLuint programID = glCreateProgram();
     glAttachShader(programID, vertexShader);
     glAttachShader(programID, fragmentShader);
@@ -159,14 +158,13 @@ struct mousepos {
     double row;
 } mousepos;
 
-void on_mouse_move(GLFWwindow* window, double xpos, double ypos)
-{
+void on_mouse_move(GLFWwindow* window, double xpos, double ypos){
     mousepos.col = xpos;
     mousepos.row = ypos;
 }
 
-int main()
-{
+int main() {
+    // INITIALIZATION BEGIN***************************************************
     if (!glfwInit())
         return 1;
 
@@ -182,11 +180,15 @@ int main()
         printf("fail to load GLAD\n");
         return 1;
     }
+    // INITIALIZATION END***************************************************
 
+    // COMPILING SHADERS BEGIN**********************************************
     struct vertline line = makeLine();
     GLuint vertexShaderID = createShader("./point.vert", GL_VERTEX_SHADER);
     GLuint fragmentShaderID = createShader("./point.frag", GL_FRAGMENT_SHADER);
     GLuint lineProgramID = makeProgram(vertexShaderID, fragmentShaderID);
+    // COMPILING SHADERS END************************************************
+
     glViewport(0, 0, 600, 600);
     glClearColor(.3, .3, .5, 1.);
     if (!glfwSetCursorPosCallback(window, on_mouse_move))
@@ -195,6 +197,7 @@ int main()
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
         glfwPollEvents();
+        // CATCH CURSOR POSITION AND SET LINE TO THE POSITION***************
         line.x = (mousepos.col / WINDOW_WIDTH) * 2. - 1.;
         vertlineUpdate(line);
         glUseProgram(lineProgramID);
